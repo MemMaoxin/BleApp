@@ -27,7 +27,8 @@ namespace bleApp
     public sealed partial class MainPage : Page
     {
         private DeviceInformation Device;
-
+        private BluetoothLEDevice bluetoothLeDevice = null;
+        readonly int E_DEVICE_NOT_AVAILABLE = unchecked((int)0x800710df); // HRESULT_FROM_WIN32(ERROR_DEVICE_NOT_AVAILABLE)
         public MainPage()
         {
             this.InitializeComponent();
@@ -49,12 +50,12 @@ namespace bleApp
 
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                 {
-                    if (FindDevice_Name.Text == devInfo.Name)
-                    {
+      //              if (FindDevice_Name.Text == devInfo.Name)
+            //        {
                         FindDevice_List.Text += String.Format("{0} : {1}\r\n", devInfo.Name, devInfo.Id);
-                        ConnDevice_Id.Text = devInfo.Id;
+           //             ConnDevice_Id.Text = devInfo.Id;
                         Device = devInfo;
-                    }
+                 //   }
                 });
 
             }); ;
@@ -84,20 +85,39 @@ namespace bleApp
 
         private async void ConnDevice_Button_Click(object sender, RoutedEventArgs e)
         {
-            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
-            {
-                BluetoothLEDevice bluetoothLeDevice = await BluetoothLEDevice.FromIdAsync(ConnDevice_Id.Text);
-                GattDeviceServicesResult result = await bluetoothLeDevice.GetGattServicesAsync();
-                if (result.Status == GattCommunicationStatus.Success)
-                {
-                    var services = result.Services;
-                    foreach (var service in services)
-                    {
-                        FindDevice_List.Text += String.Format("{0} : {1}\r\n", bluetoothLeDevice.Name, service.Uuid);
-                    }
-                }
-            });
-        }
+
+             await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
+                  {
+                      try
+                      {
+                          bluetoothLeDevice = await BluetoothLEDevice.FromIdAsync(ConnDevice_Id.Text);
+                          if (bluetoothLeDevice == null)
+                          {
+                              FindDevice_List.Text += String.Format("\r\nwarning1");
+                          }
+                      }
+                      catch (Exception ex) when (ex.HResult == E_DEVICE_NOT_AVAILABLE)
+                      {
+                          FindDevice_List.Text += String.Format("\r\nwarning2");
+                      }
+                      if (bluetoothLeDevice != null)
+                      {
+                          GattDeviceServicesResult result = await bluetoothLeDevice.GetGattServicesAsync(BluetoothCacheMode.Uncached);
+                          if (result.Status == GattCommunicationStatus.Success)
+                          {
+                              var services = result.Services;
+                              foreach (var service in services)
+                              {
+                                  FindDevice_List.Text += String.Format("{0} : {1}\r\n", bluetoothLeDevice.Name, service.Uuid);
+                              }
+                          }
+                      }
+                      else
+                      {
+                          FindDevice_List.Text += String.Format("\r\nwarning3");
+                      }
+                   });
+    }
         
 
 
